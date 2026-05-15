@@ -1,16 +1,5 @@
 node_modules/
 dist/
+uploads/
 .env
-.env.*
-!.env.example
-
-# Prisma
-prisma/migrations/dev.db*
-
-# Logs
 *.log
-npm-debug.log*
-
-# OS
-.DS_Store
-Thumbs.db

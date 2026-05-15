@@ -13,6 +13,79 @@ enum Role {
   PATIENT
 }
 
+enum VisitType {
+  NEW
+  FOLLOW_UP
+  EMERGENCY
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+  UNKNOWN
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  SEPARATED
+}
+
+enum ReferenceType {
+  DOCTOR
+  HOSPITAL
+  FRIEND
+  EMPLOYEE
+  ONLINE
+  CAMP
+  INSURANCE
+  SELF
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  CHEQUE
+  NET_BANKING
+}
+
+enum DiscountType {
+  NONE
+  INSURANCE
+  STAFF
+  CAMP
+  SENIOR
+  OTHER
+}
+
+enum PregnancyStatus {
+  NOT_APPLICABLE
+  NOT_PREGNANT
+  PREGNANT
+  LACTATING
+}
+
+enum RegistrationStatus {
+  ACTIVE
+  CLOSED
+  CANCELLED
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -22,5 +95,194 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  opRegistrations OpRegistration[]
+
   @@map("users")
+}
+
+model Department {
+  id            String           @id @default(cuid())
+  name          String           @unique
+  code          String?          @unique
+  isActive      Boolean          @default(true) @map("is_active")
+  doctors       Doctor[]
+  registrations OpRegistration[]
+
+  @@map("departments")
+}
+
+model Doctor {
+  id              String           @id @default(cuid())
+  name            String
+  code            String?          @unique
+  departmentId    String           @map("department_id")
+  department      Department       @relation(fields: [departmentId], references: [id])
+  consultationFee Decimal?         @map("consultation_fee") @db.Decimal(10, 2)
+  isActive        Boolean          @default(true) @map("is_active")
+  registrations   OpRegistration[]
+
+  @@map("doctors")
+}
+
+model HospitalBranch {
+  id            String           @id @default(cuid())
+  name          String           @unique
+  code          String?          @unique
+  isActive      Boolean          @default(true) @map("is_active")
+  registrations OpRegistration[]
+
+  @@map("hospital_branches")
+}
+
+model RegistrationCounter {
+  id            String           @id @default(cuid())
+  name          String           @unique
+  code          String?          @unique
+  isActive      Boolean          @default(true) @map("is_active")
+  registrations OpRegistration[]
+
+  @@map("registration_counters")
+}
+
+model StaffMember {
+  id            String           @id @default(cuid())
+  name          String
+  employeeCode  String?          @unique @map("employee_code")
+  isActive      Boolean          @default(true) @map("is_active")
+  registrations OpRegistration[]
+
+  @@map("staff_members")
+}
+
+model InsuranceProvider {
+  id                   String           @id @default(cuid())
+  name                 String           @unique
+  code                 String?          @unique
+  isActive             Boolean          @default(true) @map("is_active")
+  referenceRegistrations OpRegistration[] @relation("InsuranceReference")
+  billingRegistrations   OpRegistration[] @relation("BillingInsurance")
+
+  @@map("insurance_providers")
+}
+
+model Corporate {
+  id            String           @id @default(cuid())
+  name          String           @unique
+  code          String?          @unique
+  isActive      Boolean          @default(true) @map("is_active")
+  registrations OpRegistration[]
+
+  @@map("corporates")
+}
+
+model OpRegistration {
+  id String @id @default(cuid())
+
+  opNumber         String   @unique @map("op_number")
+  registrationDate DateTime @map("registration_date")
+  visitType        VisitType @map("visit_type")
+  departmentId     String   @map("department_id")
+  department       Department @relation(fields: [departmentId], references: [id])
+  doctorId         String   @map("doctor_id")
+  doctor           Doctor   @relation(fields: [doctorId], references: [id])
+  tokenNumber      Int      @map("token_number")
+  appointmentId    String?  @map("appointment_id")
+
+  firstName         String   @map("first_name")
+  middleName        String?  @map("middle_name")
+  lastName          String   @map("last_name")
+  gender            Gender
+  dateOfBirth       DateTime @map("date_of_birth")
+  age               Int?
+  bloodGroup        BloodGroup?   @map("blood_group")
+  maritalStatus     MaritalStatus? @map("marital_status")
+  nationality       String?
+  aadhaarNumber     String?  @map("aadhaar_number")
+  patientPhotoUrl   String?  @map("patient_photo_url")
+  occupation        String?
+  religion          String?
+  preferredLanguage String?  @map("preferred_language")
+
+  mobileNumber    String  @map("mobile_number")
+  alternateMobile String? @map("alternate_mobile")
+  email           String?
+  addressLine1    String? @map("address_line_1")
+  addressLine2    String? @map("address_line_2")
+  city            String?
+  state           String?
+  district        String?
+  country         String? @default("India")
+  pinCode         String? @map("pin_code")
+
+  referenceType          ReferenceType @map("reference_type")
+  referredByName         String?       @map("referred_by_name")
+  referrerOrganization   String?       @map("referrer_organization")
+  referrerContact        String?       @map("referrer_contact")
+  referrerId             String?       @map("referrer_id")
+  referralDate           DateTime?     @map("referral_date")
+  referralNotes          String?       @map("referral_notes")
+  marketingSource        String?       @map("marketing_source")
+  campEventName          String?       @map("camp_event_name")
+  employeeReferenceId    String?       @map("employee_reference_id")
+  employeeReference      StaffMember?  @relation(fields: [employeeReferenceId], references: [id])
+  insuranceReferenceId   String?       @map("insurance_reference_id")
+  insuranceReference     InsuranceProvider? @relation("InsuranceReference", fields: [insuranceReferenceId], references: [id])
+  corporateReferenceId   String?       @map("corporate_reference_id")
+  corporateReference     Corporate?    @relation(fields: [corporateReferenceId], references: [id])
+
+  emergencyContactName     String? @map("emergency_contact_name")
+  emergencyRelationship    String? @map("emergency_relationship")
+  emergencyMobile          String? @map("emergency_mobile")
+  emergencyAddress         String? @map("emergency_address")
+
+  chiefComplaint      String?  @map("chief_complaint")
+  allergies           String?
+  existingDiseases    String[] @default([]) @map("existing_diseases")
+  currentMedications  String?  @map("current_medications")
+  pastSurgeries       String?  @map("past_surgeries")
+  pregnancyStatus     PregnancyStatus? @map("pregnancy_status")
+  heightCm            Decimal? @map("height_cm") @db.Decimal(5, 2)
+  weightKg            Decimal? @map("weight_kg") @db.Decimal(5, 2)
+  bmi                 Decimal? @db.Decimal(5, 2)
+  bloodPressure       String?  @map("blood_pressure")
+  pulse               String?
+  temperature         String?
+
+  insuranceAvailable    Boolean  @default(false) @map("insurance_available")
+  insuranceProviderId   String?  @map("insurance_provider_id")
+  insuranceProvider     InsuranceProvider? @relation("BillingInsurance", fields: [insuranceProviderId], references: [id])
+  policyNumber          String?  @map("policy_number")
+  tpaName               String?  @map("tpa_name")
+  insuranceValidTill    DateTime? @map("insurance_valid_till")
+  insuranceCardUrl      String?  @map("insurance_card_url")
+
+  registrationFee   Decimal @default(0) @map("registration_fee") @db.Decimal(10, 2)
+  consultationFee   Decimal @default(0) @map("consultation_fee") @db.Decimal(10, 2)
+  paymentMethod     PaymentMethod? @map("payment_method")
+  discountType      DiscountType @default(NONE) @map("discount_type")
+  discountAmount    Decimal @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  netAmount         Decimal @default(0) @map("net_amount") @db.Decimal(10, 2)
+  receiptNumber     String  @unique @map("receipt_number")
+
+  consentAccepted          Boolean @default(false) @map("consent_accepted")
+  smsConsent               Boolean @default(false) @map("sms_consent")
+  emailConsent             Boolean @default(false) @map("email_consent")
+  privacyPolicyAccepted    Boolean @default(false) @map("privacy_policy_accepted")
+  signatureDataUrl         String? @map("signature_data_url")
+
+  createdById             String? @map("created_by_id")
+  createdBy               User?   @relation(fields: [createdById], references: [id])
+  registrationCounterId   String? @map("registration_counter_id")
+  registrationCounter     RegistrationCounter? @relation(fields: [registrationCounterId], references: [id])
+  hospitalBranchId        String? @map("hospital_branch_id")
+  hospitalBranch          HospitalBranch? @relation(fields: [hospitalBranchId], references: [id])
+  status                  RegistrationStatus @default(ACTIVE)
+  remarks                 String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([registrationDate])
+  @@index([departmentId, registrationDate])
+  @@map("op_registrations")
 }

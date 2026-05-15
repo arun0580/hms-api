@@ -9,11 +9,23 @@ export const notFoundHandler = (req: Request, _res: Response, next: NextFunction
 };
 
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+  if (err && typeof err === "object" && "code" in err && err.code === "LIMIT_FILE_SIZE") {
+    res.status(400).json({ error: "ValidationError", message: "File exceeds 5MB limit" });
+    return;
+  }
+
+  if (err instanceof Error && err.message.includes("Only JPEG")) {
+    res.status(400).json({ error: "ValidationError", message: err.message });
+    return;
+  }
+
   if (err instanceof ZodError) {
+    const flat = err.flatten();
+    const firstFieldError = Object.values(flat.fieldErrors).flat().find(Boolean);
     res.status(400).json({
       error: "ValidationError",
-      message: "Invalid request payload",
-      details: err.flatten(),
+      message: firstFieldError ?? flat.formErrors[0] ?? "Invalid request payload",
+      details: flat,
     });
     return;
   }

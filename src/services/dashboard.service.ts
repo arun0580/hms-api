@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma.js";
+import { schedulerService } from "./scheduler.service.js";
 import { startOfDay, endOfDay } from "../utils/calculations.js";
 
 export const dashboardService = {
@@ -7,11 +8,14 @@ export const dashboardService = {
     const todayStart = startOfDay(today);
     const todayEnd = endOfDay(today);
 
+    const todayStr = today.toISOString().slice(0, 10);
+
     const [
       totalPatients,
       totalDoctors,
       totalDepartments,
       activeCounters,
+      todayRegistrations,
       activeDoctors,
       inactiveDoctors,
       doctorsWithPatientsToday,
@@ -20,13 +24,23 @@ export const dashboardService = {
       last14DaysRegs,
       counters,
       counterTodayCounts,
+      appointmentSummary,
+      recentAppointments,
+      schedulerAvailability,
     ] = await Promise.all([
       prisma.opRegistration.count(),
       prisma.doctor.count({ where: { isActive: true } }),
       prisma.department.count({ where: { isActive: true } }),
       prisma.registrationCounter.count({ where: { isActive: true } }),
-      prisma.doctor.count({ where: { isActive: true } }),
-      prisma.doctor.count({ where: { isActive: false } }),
+      prisma.opRegistration.count({
+        where: { registrationDate: { gte: todayStart, lte: todayEnd } },
+      }),
+      prisma.doctor.count({ where: { isActive: true, availabilityStatus: "AVAILABLE" } }),
+      prisma.doctor.count({
+        where: {
+          OR: [{ isActive: false }, { availabilityStatus: { in: ["ON_LEAVE", "INACTIVE"] } }],
+        },
+      }),
       prisma.opRegistration.findMany({
         where: { registrationDate: { gte: todayStart, lte: todayEnd } },
         select: { doctorId: true },
@@ -68,6 +82,9 @@ export const dashboardService = {
         },
         _count: { id: true },
       }),
+      schedulerService.getAppointmentSummary(todayStr),
+      schedulerService.listRecentAppointments(8),
+      schedulerService.getCompactAvailability(),
     ]);
 
     const departmentIds = departmentGroups.map((g) => g.departmentId);
@@ -110,22 +127,37 @@ export const dashboardService = {
       time: r.registrationDate,
     }));
 
+    const recentAppts = recentAppointments.map((a) => ({
+      id: a.id,
+      appointmentNumber: a.appointmentNumber,
+      patientName: a.patientName,
+      doctorName: a.doctor.name,
+      departmentName: a.department.name,
+      time: `${a.startTime} – ${a.endTime}`,
+      status: a.status,
+      consultationType: a.consultationType,
+    }));
+
     return {
       stats: {
         totalPatients,
+        todayRegistrations,
         totalDoctors,
         totalDepartments,
         activeCounters,
       },
+      appointmentSummary,
       doctorSummary: {
         available: activeDoctors,
         onLeave: inactiveDoctors,
         activeConsultation: doctorsWithPatientsToday.length,
       },
+      schedulerAvailability,
       registrationTrend,
       departmentDistribution,
       counterActivity,
       recentPatients,
+      recentAppointments: recentAppts,
     };
   },
 };

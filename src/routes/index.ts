@@ -4,6 +4,7 @@ import userRoutes from "./user.routes.js";
 import opRegistrationRoutes from "./op-registration.routes.js";
 import dashboardRoutes from "./dashboard.routes.js";
 import masterRoutes from "./master.routes.js";
+import schedulerRoutes from "./scheduler.routes.js";
 import { uploadController } from "../controllers/upload.controller.js";
 import { asyncHandler } from "../utils/async-handler.js";
 
@@ -20,5 +21,6 @@ router.use("/user", userRoutes);
 router.use("/op-registrations", opRegistrationRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/master", masterRoutes);
+router.use("/scheduler", schedulerRoutes);
 
 export default router;

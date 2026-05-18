@@ -17,6 +17,7 @@ import type {
 const registrationInclude = {
   department: { select: { id: true, name: true, code: true } },
   doctor: { select: { id: true, name: true, code: true, consultationFee: true } },
+  referredDoctor: { select: { id: true, name: true } },
   employeeReference: { select: { id: true, name: true, employeeCode: true } },
   insuranceReference: { select: { id: true, name: true } },
   corporateReference: { select: { id: true, name: true } },
@@ -148,7 +149,8 @@ export const opRegistrationService = {
         country: input.country ?? "India",
         pinCode: input.pinCode,
 
-        referenceType: input.referenceType,
+        referenceType: input.referenceType ?? null,
+        referredDoctorId: input.referredDoctorId,
         referredByName: input.referredByName,
         referrerOrganization: input.referrerOrganization,
         referrerContact: input.referrerContact,
@@ -337,7 +339,8 @@ export const opRegistrationService = {
         country: input.country ?? "India",
         pinCode: input.pinCode,
 
-        referenceType: input.referenceType,
+        referenceType: input.referenceType ?? null,
+        referredDoctorId: input.referredDoctorId,
         referredByName: input.referredByName,
         referrerOrganization: input.referrerOrganization,
         referrerContact: input.referrerContact,

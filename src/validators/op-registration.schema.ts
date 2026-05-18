@@ -79,7 +79,8 @@ const registrationBodySchema = z.object({
     country: optionalString,
     pinCode: optionalString,
 
-    referenceType: z.enum(REFERENCE_TYPES),
+    referenceType: emptyToUndefined(z.enum(REFERENCE_TYPES).optional()),
+    referredDoctorId: optionalString,
     referredByName: optionalString,
     referrerOrganization: optionalString,
     referrerContact: optionalString,

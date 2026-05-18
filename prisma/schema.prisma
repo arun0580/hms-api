@@ -48,12 +48,42 @@ enum MaritalStatus {
 enum ReferenceType {
   DOCTOR
   HOSPITAL
+  CLINIC
   FRIEND
   EMPLOYEE
   ONLINE
   CAMP
   INSURANCE
   SELF
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  ON_LEAVE
+  BUSY
+  INACTIVE
+}
+
+enum ConsultationType {
+  OP
+  IP
+  TELECONSULTATION
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  WAITING
+  IN_CONSULTATION
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ScheduleBlockType {
+  BREAK
+  LEAVE
+  HOLIDAY
+  EMERGENCY
 }
 
 enum PaymentMethod {
@@ -101,27 +131,112 @@ model User {
 }
 
 model Department {
-  id            String           @id @default(cuid())
-  name          String           @unique
-  code          String?          @unique
-  isActive      Boolean          @default(true) @map("is_active")
+  id            String             @id @default(cuid())
+  name          String             @unique
+  code          String?            @unique
+  description   String?
+  isActive      Boolean            @default(true) @map("is_active")
   doctors       Doctor[]
+  doctorLinks   DoctorDepartment[]
   registrations OpRegistration[]
+  appointments  Appointment[]
 
   @@map("departments")
 }
 
 model Doctor {
-  id              String           @id @default(cuid())
-  name            String
-  code            String?          @unique
-  departmentId    String           @map("department_id")
-  department      Department       @relation(fields: [departmentId], references: [id])
-  consultationFee Decimal?         @map("consultation_fee") @db.Decimal(10, 2)
-  isActive        Boolean          @default(true) @map("is_active")
-  registrations   OpRegistration[]
+  id                 String                  @id @default(cuid())
+  name               String
+  code               String?                 @unique
+  departmentId       String                  @map("department_id")
+  department         Department              @relation(fields: [departmentId], references: [id])
+  specialization     String?
+  qualification      String?
+  mobileNumber       String?                 @map("mobile_number")
+  email              String?
+  consultationFee    Decimal?                @map("consultation_fee") @db.Decimal(10, 2)
+  availabilityStatus AvailabilityStatus      @default(AVAILABLE) @map("availability_status")
+  consultationTiming String?                 @map("consultation_timing")
+  weeklySchedule     Json?                   @map("weekly_schedule")
+  profilePhotoUrl       String?                 @map("profile_photo_url")
+  slotDurationMinutes   Int                     @default(15) @map("slot_duration_minutes")
+  bufferMinutes         Int                     @default(5) @map("buffer_minutes")
+  maxPatientsPerDay     Int?                    @map("max_patients_per_day")
+  isActive              Boolean                 @default(true) @map("is_active")
+  registrations         OpRegistration[]
+  referredPatients      OpRegistration[]        @relation("ReferredDoctor")
+  departments           DoctorDepartment[]
+  consultationSlots     DoctorConsultationSlot[]
+  appointments          Appointment[]
+  scheduleBlocks        DoctorScheduleBlock[]
 
   @@map("doctors")
+}
+
+model DoctorDepartment {
+  doctorId     String     @map("doctor_id")
+  doctor       Doctor     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  departmentId String     @map("department_id")
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  isPrimary    Boolean    @default(false) @map("is_primary")
+
+  @@id([doctorId, departmentId])
+  @@map("doctor_departments")
+}
+
+model DoctorConsultationSlot {
+  id           String   @id @default(cuid())
+  doctorId     String   @map("doctor_id")
+  doctor       Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int      @map("day_of_week")
+  startTime    String   @map("start_time")
+  endTime      String   @map("end_time")
+  maxPatients  Int?     @map("max_patients")
+
+  @@index([doctorId, dayOfWeek])
+  @@map("doctor_consultation_slots")
+}
+
+model Appointment {
+  id                 String             @id @default(cuid())
+  appointmentNumber  String             @unique @map("appointment_number")
+  doctorId           String             @map("doctor_id")
+  doctor             Doctor             @relation(fields: [doctorId], references: [id])
+  departmentId       String             @map("department_id")
+  department         Department         @relation(fields: [departmentId], references: [id])
+  patientName        String             @map("patient_name")
+  patientPhone       String?            @map("patient_phone")
+  opRegistrationId   String?            @map("op_registration_id")
+  consultationType   ConsultationType   @map("consultation_type")
+  appointmentDate    DateTime           @map("appointment_date")
+  startTime          String             @map("start_time")
+  endTime            String             @map("end_time")
+  status             AppointmentStatus  @default(SCHEDULED)
+  notes              String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([doctorId, appointmentDate])
+  @@index([departmentId, appointmentDate])
+  @@map("appointments")
+}
+
+model DoctorScheduleBlock {
+  id         String            @id @default(cuid())
+  doctorId   String            @map("doctor_id")
+  doctor     Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  blockDate  DateTime          @map("block_date")
+  startTime  String?           @map("start_time")
+  endTime    String?           @map("end_time")
+  blockType  ScheduleBlockType @map("block_type")
+  title      String?
+  isFullDay  Boolean           @default(false) @map("is_full_day")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([doctorId, blockDate])
+  @@map("doctor_schedule_blocks")
 }
 
 model HospitalBranch {
@@ -138,8 +253,10 @@ model RegistrationCounter {
   id            String           @id @default(cuid())
   name          String           @unique
   code          String?          @unique
+  location      String?
   isActive      Boolean          @default(true) @map("is_active")
   registrations OpRegistration[]
+  staffAssignments CounterStaff[]
 
   @@map("registration_counters")
 }
@@ -150,8 +267,19 @@ model StaffMember {
   employeeCode  String?          @unique @map("employee_code")
   isActive      Boolean          @default(true) @map("is_active")
   registrations OpRegistration[]
+  counterAssignments CounterStaff[]
 
   @@map("staff_members")
+}
+
+model CounterStaff {
+  counterId String              @map("counter_id")
+  counter   RegistrationCounter @relation(fields: [counterId], references: [id], onDelete: Cascade)
+  staffId   String              @map("staff_id")
+  staff     StaffMember         @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@id([counterId, staffId])
+  @@map("counter_staff")
 }
 
 model InsuranceProvider {
@@ -214,7 +342,9 @@ model OpRegistration {
   country         String? @default("India")
   pinCode         String? @map("pin_code")
 
-  referenceType          ReferenceType @map("reference_type")
+  referenceType          ReferenceType? @map("reference_type")
+  referredDoctorId       String?        @map("referred_doctor_id")
+  referredDoctor         Doctor?        @relation("ReferredDoctor", fields: [referredDoctorId], references: [id])
   referredByName         String?       @map("referred_by_name")
   referrerOrganization   String?       @map("referrer_organization")
   referrerContact        String?       @map("referrer_contact")

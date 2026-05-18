@@ -53,7 +53,7 @@ async function main() {
   for (const doc of doctors) {
     const departmentId = deptMap[doc.departmentCode];
     if (!departmentId) continue;
-    await prisma.doctor.upsert({
+    const doctor = await prisma.doctor.upsert({
       where: { code: doc.code },
       update: {},
       create: {
@@ -62,6 +62,13 @@ async function main() {
         departmentId,
         consultationFee: doc.consultationFee,
       },
+    });
+    await prisma.doctorDepartment.upsert({
+      where: {
+        doctorId_departmentId: { doctorId: doctor.id, departmentId },
+      },
+      update: { isPrimary: true },
+      create: { doctorId: doctor.id, departmentId, isPrimary: true },
     });
   }
 
@@ -112,6 +119,114 @@ async function main() {
       update: {},
       create: { name, code: name.replace(/\s+/g, "_").toUpperCase().slice(0, 10) },
     });
+  }
+
+  for (const doc of await prisma.doctor.findMany()) {
+    await prisma.doctorDepartment.upsert({
+      where: {
+        doctorId_departmentId: { doctorId: doc.id, departmentId: doc.departmentId },
+      },
+      update: { isPrimary: true },
+      create: { doctorId: doc.id, departmentId: doc.departmentId, isPrimary: true },
+    });
+
+    const existingSlots = await prisma.doctorConsultationSlot.count({ where: { doctorId: doc.id } });
+    if (existingSlots === 0) {
+      for (let day = 1; day <= 5; day++) {
+        await prisma.doctorConsultationSlot.create({
+          data: {
+            doctorId: doc.id,
+            dayOfWeek: day,
+            startTime: "09:00",
+            endTime: "13:00",
+          },
+        });
+        await prisma.doctorConsultationSlot.create({
+          data: {
+            doctorId: doc.id,
+            dayOfWeek: day,
+            startTime: "14:00",
+            endTime: "17:00",
+          },
+        });
+      }
+    }
+
+    await prisma.doctor.update({
+      where: { id: doc.id },
+      data: {
+        slotDurationMinutes: 15,
+        bufferMinutes: 5,
+        consultationTiming: "9:00 AM - 5:00 PM",
+        weeklySchedule: {
+          Monday: "9:00 AM - 5:00 PM",
+          Tuesday: "9:00 AM - 5:00 PM",
+          Wednesday: "9:00 AM - 5:00 PM",
+          Thursday: "9:00 AM - 5:00 PM",
+          Friday: "9:00 AM - 5:00 PM",
+        },
+      },
+    });
+  }
+
+  const firstDoctor = await prisma.doctor.findFirst({ include: { department: true } });
+  if (firstDoctor) {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const aptCount = await prisma.appointment.count({
+      where: { doctorId: firstDoctor.id, appointmentDate: today },
+    });
+    if (aptCount === 0) {
+      const prefix = `APT${today.toISOString().slice(0, 10).replace(/-/g, "")}`;
+      await prisma.appointment.createMany({
+        data: [
+          {
+            appointmentNumber: `${prefix}0001`,
+            doctorId: firstDoctor.id,
+            departmentId: firstDoctor.departmentId,
+            patientName: "Ramesh Kumar",
+            patientPhone: "9876543210",
+            consultationType: "OP",
+            appointmentDate: today,
+            startTime: "09:00",
+            endTime: "09:15",
+            status: "COMPLETED",
+          },
+          {
+            appointmentNumber: `${prefix}0002`,
+            doctorId: firstDoctor.id,
+            departmentId: firstDoctor.departmentId,
+            patientName: "Lakshmi Devi",
+            consultationType: "OP",
+            appointmentDate: today,
+            startTime: "09:30",
+            endTime: "09:45",
+            status: "WAITING",
+          },
+          {
+            appointmentNumber: `${prefix}0003`,
+            doctorId: firstDoctor.id,
+            departmentId: firstDoctor.departmentId,
+            patientName: "Arjun Nair",
+            consultationType: "OP",
+            appointmentDate: today,
+            startTime: "10:00",
+            endTime: "10:15",
+            status: "SCHEDULED",
+          },
+        ],
+      });
+      await prisma.doctorScheduleBlock.create({
+        data: {
+          doctorId: firstDoctor.id,
+          blockDate: today,
+          startTime: "12:00",
+          endTime: "13:00",
+          blockType: "BREAK",
+          title: "Lunch Break",
+        },
+      });
+    }
   }
 
   console.log("Seed completed:");

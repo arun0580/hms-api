@@ -15,6 +15,7 @@ export const MARITAL_STATUSES = ["SINGLE", "MARRIED", "DIVORCED", "WIDOWED", "SE
 export const REFERENCE_TYPES = [
   "DOCTOR",
   "HOSPITAL",
+  "CLINIC",
   "FRIEND",
   "EMPLOYEE",
   "ONLINE",
@@ -22,6 +23,8 @@ export const REFERENCE_TYPES = [
   "INSURANCE",
   "SELF",
 ] as const;
+
+export const AVAILABILITY_STATUSES = ["AVAILABLE", "ON_LEAVE", "BUSY", "INACTIVE"] as const;
 export const PAYMENT_METHODS = ["CASH", "CARD", "UPI", "CHEQUE", "NET_BANKING"] as const;
 export const DISCOUNT_TYPES = ["NONE", "INSURANCE", "STAFF", "CAMP", "SENIOR", "OTHER"] as const;
 export const PREGNANCY_STATUSES = ["NOT_APPLICABLE", "NOT_PREGNANT", "PREGNANT", "LACTATING"] as const;
